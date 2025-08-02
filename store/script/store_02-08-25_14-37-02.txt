@@ -1,0 +1,58 @@
+# Проект: store | Дата: 02-08-25_14-37-02
+
+## Модели (кратко)
+
+1. LogEntry
+Поля: id: AutoField, action_time: DateTimeField, user: ForeignKey, content_type: ForeignKey, object_id: TextField...
+Есть метод clean()
+Методы: get_action_flag_display, get_admin_url, get_change_message...
+
+1. Permission
+Поля: id: AutoField, name: CharField(255), content_type: ForeignKey, codename: CharField(100)
+Есть метод clean()
+Методы: natural_key
+
+1. Group
+Поля: id: AutoField, name: CharField(150), permissions: ManyToManyField
+Есть метод clean()
+Методы: natural_key
+
+1. User
+Поля: id: AutoField, password: CharField(128), last_login: DateTimeField, is_superuser: BooleanField, username: CharField(150)...
+Есть метод clean()
+Методы: acheck_password, aget_all_permissions, aget_group_permissions...
+
+1. ContentType
+Поля: id: AutoField, app_label: CharField(100), model: CharField(100)
+Есть метод clean()
+Методы: get_all_objects_for_this_type, get_object_for_this_type, model_class...
+
+1. Session
+Поля: session_key: CharField(40), session_data: TextField, expire_date: DateTimeField
+Есть метод clean()
+Методы: get_decoded, get_next_by_expire_date, get_previous_by_expire_date
+
+1. Category
+Поля: id: BigAutoField, name: CharField(255), slug: SlugField(50), parent: ForeignKey
+Есть метод clean()
+
+1. Product
+Поля: id: BigAutoField, code: CharField(100), name: CharField(255), description: TextField, category: ForeignKey...
+Есть метод clean()
+Методы: get_availability_status, get_next_by_created_at, get_next_by_updated_at...
+
+## Админка (основное)
+- GroupAdmin
+  Отображаемые поля: ('__str__',)
+- UserAdmin
+  Отображаемые поля: ('username', 'email', 'first_name')
+- CategoryAdmin
+  Отображаемые поля: ('name', 'parent_link', 'slug_display')
+- ProductAdmin
+  Отображаемые поля: ('name', 'code', 'category')
+
+## Views
+Требуется ручная проверка
+
+## URLs
+- admin/

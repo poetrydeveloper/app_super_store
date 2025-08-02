@@ -1,0 +1,23 @@
+# Проект: store | Дата: 02-08-25_14-02-35
+
+## Модели
+1. LogEntry
+1. Permission
+1. Group
+1. User
+1. ContentType
+1. Session
+1. Category
+1. Product
+
+## Админка
+- GroupAdmin:
+  - list_display: ['__str__']
+- UserAdmin:
+  - list_display: ['username', 'email', 'first_name', 'last_name', 'is_staff']
+
+## Views
+Пока не анализировались (в проекте нет приложений)
+
+## URLs
+- admin/
