@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     # простые app
     'goods.apps.GoodsConfig',
     'files.apps.FilesConfig',
+    'suppliers.apps.SuppliersConfig',
 ]
 
 MIDDLEWARE = [
