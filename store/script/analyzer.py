@@ -2,79 +2,77 @@
 import os
 import re
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
+from collections import defaultdict
 
 
-def find_report_files(directory: str = ".") -> List[str]:
-    """Находит все файлы отчётов в указанной директории"""
-    return sorted(
-        [f for f in os.listdir(directory)
-         if f.startswith('store_') and f.endswith('.txt')],
-        key=lambda x: os.path.getmtime(os.path.join(directory, x))
-    )
+def get_latest_reports():
+    """Возвращает 2 последних отчета в текущей директории"""
+    files = [f for f in os.listdir() if f.startswith('store_') and f.endswith('.txt')]
+    return sorted(files, key=lambda x: os.path.getmtime(x))[-2:]
 
 
-def get_latest_reports(directory: str = ".") -> Tuple[str, str]:
-    """Возвращает пути к двум последним отчётам"""
-    reports = find_report_files(directory)
-    if len(reports) < 2:
-        raise ValueError("Не найдено достаточно отчётов для сравнения (нужно минимум 2)")
-    return (
-        os.path.join(directory, reports[-2]),  # Предпоследний
-        os.path.join(directory, reports[-1])  # Последний
-    )
-
-
-def parse_report_file(file_path: str) -> Dict[str, List[str]]:
-    """Парсит файл отчёта на секции"""
-    sections = {}
-    current_section = None
-    with open(file_path, 'r', encoding='utf-8') as file:
-        for line in file:
-            line = line.strip()
-            if line.startswith('## '):
-                current_section = line[3:].strip()
-                sections[current_section] = []
-            elif current_section is not None and line:
-                sections[current_section].append(line)
+def parse_sections(content):
+    """Разбирает содержимое на секции"""
+    sections = defaultdict(list)
+    current = None
+    for line in content:
+        line = line.strip()
+        if line.startswith('## '):
+            current = line[3:].strip()
+        elif current:
+            sections[current].append(line)
     return sections
 
 
-def extract_models(content: List[str]) -> Dict[str, List[str]]:
-    """Извлекает модели из секции"""
-    models = {}
-    current_model = None
+def analyze_models(old, new):
+    """Анализирует изменения в моделях"""
+    report = []
+    old_models = {m.split('.', 1)[1].strip(): m for m in old if re.match(r'^\d+\.', m)}
+    new_models = {m.split('.', 1)[1].strip(): m for m in new if re.match(r'^\d+\.', m)}
 
-    for line in content:
-        if re.match(r'^\d+\.\s+\w+', line):
-            current_model = line.split('.', 1)[1].strip()
-            models[current_model] = []
-        elif current_model:
-            models[current_model].append(line)
-
-    return models
-
-
-def compare_models(
-        old_models: Dict[str, List[str]],
-        new_models: Dict[str, List[str]]
-) -> Tuple[List[str], List[str], List[str]]:
-    """Сравнивает модели между отчётами"""
-    added = [m for m in new_models if m not in old_models]
-    removed = [m for m in old_models if m not in new_models]
-    changed = [
-        m for m in old_models
-        if m in new_models and old_models[m] != new_models[m]
-    ]
-    return added, removed, changed
+    for name in set(new_models) - set(old_models):
+        model_info = []
+        for line in new[new.index(new_models[name]):]:
+            if line.startswith('1.') and line != new_models[name]:
+                break
+            if line.strip():
+                model_info.append(line.strip())
+        if model_info:
+            report.append(f"### Новая модель: {name}")
+            report.extend(model_info)
+            report.append("")
+    return report
 
 
-def generate_report(
-        old_file: str,
-        new_file: str,
-        changes: Dict[str, Tuple[List[str], List[str], List[str]]]
-) -> str:
-    """Генерирует текст отчёта с детализацией изменений"""
+def analyze_admin(old, new):
+    """Анализирует изменения в админке"""
+    report = []
+    old_admins = {line.split('Admin')[0].strip('- '): line for line in old if 'Admin' in line}
+    new_admins = {line.split('Admin')[0].strip('- '): line for line in new if 'Admin' in line}
+
+    for name in set(new_admins) - set(old_admins):
+        admin_info = new_admins[name].strip()
+        report.append(f"### Новый администратор: {name}Admin")
+        report.append(admin_info)
+        idx = new.index(admin_info)
+        for line in new[idx + 1:]:
+            if line.startswith('- ') or not line.strip():
+                break
+            report.append(line.strip())
+        report.append("")
+    return report
+
+
+def generate_report(old_file, new_file):
+    """Генерирует полный отчет"""
+    with open(old_file, 'r', encoding='utf-8') as f:
+        old_content = f.readlines()
+    with open(new_file, 'r', encoding='utf-8') as f:
+        new_content = f.readlines()
+
+    old_sections = parse_sections(old_content)
+    new_sections = parse_sections(new_content)
+
     report = [
         f"# Детальный анализ изменений",
         f"## Сравниваемые версии",
@@ -84,91 +82,38 @@ def generate_report(
         ""
     ]
 
-    for section, (added, removed, changed) in changes.items():
-        if not any([added, removed, changed]):
-            continue
+    if 'Модели (кратко)' in new_sections:
+        model_changes = analyze_models(
+            old_sections.get('Модели (кратко)', []),
+            new_sections.get('Модели (кратко)', [])
+        )
+        if model_changes:
+            report.append("## Изменения в моделях")
+            report.extend(model_changes)
 
-        report.append(f"## {section}")
-
-        if added:
-            report.append("### Новые элементы:")
-            for item in added:
-                if section == "Модели (кратко)":
-                    report.append(f"- Добавлена модель: **{item}**")
-                    if item == "ProductImage":
-                        report.append(
-                            "  - Поля: product (ForeignKey), image (ImageField), code (CharField), is_main (BooleanField)")
-                        report.append("  - Назначение: хранение изображений товаров")
-                else:
-                    report.append(f"- {item}")
-
-        if removed:
-            report.append("### Удалённые элементы:")
-            for item in removed:
-                report.append(f"- {item}")
-
-        if changed:
-            report.append("### Изменения:")
-            for item in changed:
-                if item == "Обновлено содержимое секции":
-                    if section == "Админка (основное)":
-                        report.append("- Добавлен ProductImageAdmin")
-                        report.append("- Обновлён ProductAdmin (добавлены превью изображений)")
-                    elif section == "URLs":
-                        report.append("- Добавлен путь для медиафайлов: ^media/(?P<path>.*)$")
-                else:
-                    report.append(f"- {item}")
-
-        report.append("")
+    if 'Админка (основное)' in new_sections:
+        admin_changes = analyze_admin(
+            old_sections.get('Админка (основное)', []),
+            new_sections.get('Админка (основное)', [])
+        )
+        if admin_changes:
+            report.append("## Изменения в админке")
+            report.extend(admin_changes)
 
     return "\n".join(report)
 
 
-def analyze_latest_reports(output_dir: str = "logs") -> str:
-    """Анализирует два последних отчёта"""
+if __name__ == "__main__":
     try:
-        # Создаем папку для логов, если её нет
-        os.makedirs(output_dir, exist_ok=True)
+        old, new = get_latest_reports()
+        report = generate_report(old, new)
 
-        # Находим отчёты
-        old_file, new_file = get_latest_reports()
-
-        # Парсим файлы
-        old_data = parse_report_file(old_file)
-        new_data = parse_report_file(new_file)
-
-        # Сравниваем изменения
-        changes = {}
-        for section in set(old_data.keys()).union(set(new_data.keys())):
-            if section == "Модели (кратко)":
-                old_models = extract_models(old_data.get(section, []))
-                new_models = extract_models(new_data.get(section, []))
-                changes[section] = compare_models(old_models, new_models)
-            else:
-                old_content = old_data.get(section, [])
-                new_content = new_data.get(section, [])
-                if old_content != new_content:
-                    changes[section] = (
-                        [],  # Для не-модельных секций просто отмечаем изменения
-                        [],
-                        ["Обновлено содержимое секции"]
-                    )
-
-        # Генерируем и сохраняем отчёт
-        timestamp = datetime.now().strftime("%d-%m-%y_%H-%M-%S")
-        output_file = os.path.join(output_dir, f"Analyze_store_{timestamp}.txt")
-
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(generate_report(old_file, new_file, changes))
-
-        print(f"Анализ завершён. Отчёт сохранён в: {output_file}")
-        return output_file
+        # Сохраняем в текущую директорию
+        out_file = f"Analyze_{os.path.basename(new)}"
+        with open(out_file, 'w', encoding='utf-8') as f:
+            f.write(report)
 
     except Exception as e:
-        print(f"Ошибка при анализе: {str(e)}")
-        raise
-
-
-if __name__ == "__main__":
-    # Автоматический анализ при запуске
-    analyze_latest_reports()
+        # Логирование ошибок в файл error.log в текущей директории
+        with open("analyzer_error.log", 'a', encoding='utf-8') as f:
+            f.write(f"{datetime.now()}: {str(e)}\n")

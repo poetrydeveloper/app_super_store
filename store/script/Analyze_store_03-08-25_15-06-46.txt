@@ -1,0 +1,16 @@
+# Детальный анализ изменений
+## Сравниваемые версии
+- Предыдущая: store_03-08-25_14-56-33.txt
+- Текущая: store_03-08-25_15-06-46.txt
+## Дата анализа: 03-08-2025 15:19:54
+
+## Изменения в моделях
+### Новая модель: Customer
+1. Customer
+Поля: id: BigAutoField, name: CharField(255), phone: CharField(20), email: EmailField(254), notes: TextField
+Есть метод clean()
+
+## Изменения в админке
+### Новый администратор: CustomerAdmin
+- CustomerAdmin
+Отображаемые поля: ('name', 'phone', 'email_short')
