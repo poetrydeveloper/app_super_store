@@ -1,0 +1,17 @@
+# Детальный анализ изменений
+## Сравниваемые версии
+- Предыдущая: store_03-08-25_15-06-46.txt
+- Текущая: store_04-08-25_13-04-41.txt
+## Дата анализа: 04-08-2025 13:04:52
+
+## Изменения в моделях
+### Новая модель: ProductUnit
+1. ProductUnit
+Поля: id: BigAutoField, product: ForeignKey, serial_number: CharField(100), status: CharField(25), created_at: DateTimeField...
+Есть метод clean()
+Методы: get_next_by_created_at, get_previous_by_created_at, get_purchase_price...
+
+## Изменения в админке
+### Новый администратор: ProductUnitAdmin
+- ProductUnitAdmin
+Отображаемые поля: ('serial_number', 'product_link', 'status_badge')

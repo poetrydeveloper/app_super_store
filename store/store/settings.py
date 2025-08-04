@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'files.apps.FilesConfig',
     'suppliers.apps.SuppliersConfig',
     'customers.apps.CustomersConfig',
+    # непростые app
+    'unit.apps.UnitConfig',
 ]
 
 MIDDLEWARE = [
