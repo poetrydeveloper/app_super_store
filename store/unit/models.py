@@ -45,13 +45,13 @@ class ProductUnit(models.Model):
     )
 
     # Связи с документами
-    # request_item = models.ForeignKey(
-    #     'request.RequestItem',
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    #     blank=True,
-    #     verbose_name='Позиция заявки'
-    # )
+    request_item = models.ForeignKey(
+        'request.RequestItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Позиция заявки'
+    )
     # delivery_item = models.ForeignKey(
     #     'delivery.DeliveryItem',
     #     on_delete=models.SET_NULL,
@@ -84,6 +84,12 @@ class ProductUnit(models.Model):
         null=True,
         blank=True
     )
+
+    def mark_as_candidate(self):
+        """Перевод в кандидаты на заявку"""
+        if self.status == 'created':
+            self.status = 'candidate_in_request'
+            self.save()
 
     class Meta:
         verbose_name = 'Единица товара'

@@ -1,10 +1,13 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import ProductUnit
 from django.urls import reverse
+from django.core.exceptions import ValidationError
+from .models import ProductUnit
+
 
 @admin.register(ProductUnit)
 class ProductUnitAdmin(admin.ModelAdmin):
+    # Настройки отображения списка
     list_display = (
         'serial_number',
         'product_link',
@@ -14,29 +17,39 @@ class ProductUnitAdmin(admin.ModelAdmin):
         'document_links',
         'created_at'
     )
+
+    # Фильтры
     list_filter = (
         'status',
         'is_extra_add_delivery_item',
         'product__category',
         'created_at'
     )
+
+    # Поиск
     search_fields = (
         'serial_number',
         'product__name',
         'product__code'
     )
+
+    # Только для чтения
     readonly_fields = (
         'created_at',
         'serial_number',
         'purchase_price_display',
         'sale_info_detailed'
     )
+
+    # Оптимизация запросов
     list_select_related = (
         'product',
         'request_item',
         'delivery_item',
         'sale_item'
     )
+
+    # Группировка полей в форме редактирования
     fieldsets = (
         (None, {
             'fields': ('product', 'serial_number', 'status')
@@ -64,16 +77,20 @@ class ProductUnitAdmin(admin.ModelAdmin):
         }),
     )
 
-    # === Кастомные методы для отображения ===
+    # Действия
+    actions = ['mark_as_candidates']
+
+    # Кастомные методы для отображения
     def product_link(self, obj):
         url = reverse('admin:goods_product_change', args=[obj.product.id])
         return format_html('<a href="{}">{}</a>', url, obj.product.name)
+
     product_link.short_description = 'Товар'
     product_link.admin_order_field = 'product'
 
     def status_badge(self, obj):
         colors = {
-            'create_empty': 'gray',
+            'created': 'gray',
             'candidate_in_request': 'lightblue',
             'in_request': 'blue',
             'in_request_cancelled': 'orange',
@@ -89,11 +106,13 @@ class ProductUnitAdmin(admin.ModelAdmin):
             colors.get(obj.status, 'gray'),
             obj.get_status_display()
         )
+
     status_badge.short_description = 'Статус'
 
     def purchase_price_display(self, obj):
         price = obj.get_purchase_price()
         return f"{price} ₽" if price else "-"
+
     purchase_price_display.short_description = 'Цена закупки'
 
     def sale_info(self, obj):
@@ -105,16 +124,18 @@ class ProductUnitAdmin(admin.ModelAdmin):
                 date, price
             )
         return "-"
+
     sale_info.short_description = 'Продажа'
 
     def sale_info_detailed(self, obj):
         return self.sale_info(obj) if obj.status == 'sold' else "Не продано"
+
     sale_info_detailed.short_description = 'Детали продажи'
 
     def document_links(self, obj):
         links = []
         if obj.request_item:
-            url = reverse('admin:warehouse_requestitem_change', args=[obj.request_item.id])
+            url = reverse('admin:request_requestitem_change', args=[obj.request_item.id])
             links.append(f'<a href="{url}">Заявка</a>')
         if obj.delivery_item:
             url = reverse('admin:warehouse_deliveryitem_change', args=[obj.delivery_item.id])
@@ -123,8 +144,16 @@ class ProductUnitAdmin(admin.ModelAdmin):
             url = reverse('admin:sale_saleitem_change', args=[obj.sale_item.id])
             links.append(f'<a href="{url}">Продажа</a>')
         return format_html(' | '.join(links)) if links else "-"
+
     document_links.short_description = 'Документы'
 
+    # Новый action для перевода в кандидаты
+    @admin.action(description="Пометить как кандидатов на заявку")
+    def mark_as_candidates(self, request, queryset):
+        updated = queryset.filter(status='created').update(status='candidate_in_request')
+        self.message_user(request, f"Переведено в кандидаты: {updated} единиц")
+
+    # Валидация при сохранении
     def save_model(self, request, obj, form, change):
-        obj.full_clean()  # Вызывает clean()
+        obj.full_clean()
         super().save_model(request, obj, form, change)
