@@ -6,11 +6,13 @@ from django.utils.html import format_html
 from django.urls import reverse
 
 
+
 class ProductUnit(models.Model):
     STATUS_CHOICES = [
         ('create_empty', 'Создан пустым'),
         ('candidate_in_request', 'Кандидат на заявку'),
         ('in_request', 'В заявке'),
+        ('in_delivery', 'В поставке'),
         ('in_request_cancelled', 'В заявке - отменен'),
         ('in_store', 'В магазине'),
         ('sold', 'Продан'),
@@ -52,13 +54,15 @@ class ProductUnit(models.Model):
         blank=True,
         verbose_name='Позиция заявки'
     )
-    # delivery_item = models.ForeignKey(
-    #     'delivery.DeliveryItem',
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    #     blank=True,
-    #     verbose_name='Позиция поставки'
-    # )
+    delivery_item = models.ForeignKey(
+        'delivery.DeliveryItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Позиция поставки'
+    )
+    delivery_date = models.DateField(null=True, blank=True)
+    store_arrival_date = models.DateTimeField(null=True, blank=True)
     is_extra_add_delivery_item = models.BooleanField(
         'Экстренная поставка (без заявки)',
         default=False
@@ -84,6 +88,7 @@ class ProductUnit(models.Model):
         null=True,
         blank=True
     )
+    updated_at = models.DateTimeField(auto_now=True)
 
     def mark_as_candidate(self):
         """Перевод в кандидаты на заявку"""

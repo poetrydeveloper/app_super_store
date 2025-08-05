@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>Привязать {{ units|length }} кандидатов к заявке</h1>
+<ul>
+    {% for unit in units %}
+    <li>{{ unit.product.name }} ({{ unit.serial_number }})</li>
+    {% endfor %}
+</ul>
+
+<form method="get" action="">
+    <input type="hidden" name="action" value="link_to_request">
+    {% for unit in units %}
+    <input type="hidden" name="_selected_action" value="{{ unit.id }}">
+    {% endfor %}
+    
+    <div class="form-group">
+        <label for="request_id">Выберите заявку:</label>
+        <select name="request_id" id="request_id" class="form-control">
+            {% for req in requests %}
+            <option value="{{ req.id }}">Заявка #{{ req.id }} ({{ req.created_at|date }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="submit-row">
+        <input type="submit" class="default" value="Привязать">
+        <a href="." class="button">Отмена</a>
+    </div>
+</form>
+{% endblock %}

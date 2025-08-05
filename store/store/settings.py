@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # непростые app
     'unit.apps.UnitConfig',
     'request.apps.RequestConfig',
+    'delivery.apps.DeliveryConfig',
 ]
 
 MIDDLEWARE = [

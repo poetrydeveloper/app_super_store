@@ -1,6 +1,4 @@
-#app request  models
 from datetime import timezone
-
 from django.db import models
 from django.core.exceptions import ValidationError
 
@@ -19,10 +17,9 @@ class Request(models.Model):
         return f"Заявка #{self.id}"
 
 
-
 class RequestItem(models.Model):
     request = models.ForeignKey('Request', on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey('goods.Product', on_delete=models.PROTECT)
+    product_unit = models.ForeignKey('unit.ProductUnit', on_delete=models.PROTECT)  # Изменено с product на product_unit
     quantity = models.PositiveIntegerField(default=1)
     price_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
     supplier = models.ForeignKey(
@@ -32,42 +29,21 @@ class RequestItem(models.Model):
         blank=True
     )
 
+    @property
+    def product(self):
+        """Для обратной совместимости с кодом, ожидающим product"""
+        return self.product_unit.product
+
     def save(self, *args, **kwargs):
         if not self.pk:  # Только при создании
-            self._create_units()
+            self._update_unit_status()
         super().save(*args, **kwargs)
 
-    def _create_units(self):
-        """Создает недостающие unit и связывает их"""
-        from unit.models import ProductUnit
-
-        candidates = ProductUnit.objects.filter(
-            product=self.product,
-            status='candidate_in_request',
-            request_item__isnull=True
-        )[:self.quantity]
-
-        needed_units = self.quantity - candidates.count()
-        if needed_units > 0:
-            if not self.product.code:
-                raise ValidationError("Нельзя создать unit без кода товара")
-
-            new_units = [
-                ProductUnit(
-                    product=self.product,
-                    status='candidate_in_request',
-                    serial_number=f"{self.product.code}-{timezone.now().strftime('%Y%m%d')}-{i:03d}"
-                ) for i in range(1, needed_units + 1)
-            ]
-            ProductUnit.objects.bulk_create(new_units)
-            all_units = list(candidates) + new_units
-        else:
-            all_units = list(candidates)
-
-        ProductUnit.objects.filter(pk__in=[u.pk for u in all_units]).update(
-            status='in_request',
-            request_item=self
-        )
+    def _update_unit_status(self):
+        """Обновляет статус product_unit"""
+        if self.product_unit.status != 'in_request':
+            self.product_unit.status = 'in_request'
+            self.product_unit.save()
 
     @property
     def total_cost(self):
@@ -80,4 +56,4 @@ class RequestItem(models.Model):
             raise ValidationError("Количество не может быть меньше 1")
 
     def __str__(self):
-        return f"{self.product.name} x{self.quantity} ({self.price_per_unit} ₽)"
+        return f"{self.product_unit.product.name} x{self.quantity} ({self.price_per_unit} ₽)"
